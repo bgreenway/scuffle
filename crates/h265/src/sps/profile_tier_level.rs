@@ -70,10 +70,9 @@ impl ProfileTierLevel {
 
         for i in 0..max_num_sub_layers_minus_1 as usize {
             if sub_layer_profile_present_flags[i] {
+                // Also reads sub_layer_level_idc when sub_layer_level_present_flag is set.
                 sub_layer_profiles[i] = Some(Profile::parse(bit_reader, sub_layer_level_present_flags[i])?);
-            }
-
-            if sub_layer_level_present_flags[i] {
+            } else if sub_layer_level_present_flags[i] {
                 sub_layer_level_idcs[i] = Some(bit_reader.read_u8()?);
             }
         }
