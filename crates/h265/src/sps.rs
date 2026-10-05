@@ -358,8 +358,6 @@ impl SpsRbsp {
             vui_parameters = Some(VuiParameters::parse(
                 &mut bit_reader,
                 sps_max_sub_layers_minus1,
-                bit_depth_y,
-                bit_depth_c,
                 chroma_format_idc,
                 &profile_tier_level.general_profile,
                 &conformance_window,
@@ -943,6 +941,30 @@ mod tests {
         let data = b"\x42\x01\x01\x01\x60\x00\x00\x03\x00\x00\x03\x00\x00\x03\x00\x00\x03\x00\x00\xA0\x0B\x08\x04\x85\x96\x5E\x49\x1B\x60\xD9\x78\x88\x88\x8F\xE7\x9F\xCF\xE7\xF3\xF9\xFC\xF2\xFF\xFF\xFF\xCF\xE7\xF3\xF9\xFC\xFE\x7F\x3F\x3F\x9F\xCF\xE7\xF3\xF9\xDB\x20";
 
         let nalu = SpsNALUnit::parse(io::Cursor::new(data)).unwrap();
+        insta::assert_debug_snapshot!(nalu);
+    }
+
+    #[test]
+    fn test_sps_parse_matrix_coeffs_zero() {
+        // This is a real SPS from an IP camera (Viewtron IP-PTZ-440, sub-stream).
+        // Its VUI signals matrix_coeffs = 0 on 4:2:0 video, which ISO/IEC 23008-2 - E.3.1
+        // does not allow in a conforming bitstream. The value is still reported as coded.
+        let data = b"\x42\x01\x01\x01\x60\x00\x00\x03\x00\x00\x03\x00\x00\x03\x00\x00\x03\x00\x96\xA0\x03\xC0\x80\x11\x07\xCB\x8A\xAD\x3B\xA2\x4B\xB9\x08\x00\x00\x03\x00\x20\x05\x26\x5C\x00\x33\x7F\x98\x01";
+
+        let nalu = SpsNALUnit::parse(io::Cursor::new(data)).unwrap();
+        let sps = &nalu.rbsp;
+
+        assert_eq!(sps.cropped_width(), 1920);
+        assert_eq!(sps.cropped_height(), 1080);
+        assert_eq!(sps.chroma_format_idc, 1);
+        assert_eq!(sps.bit_depth_y(), 8);
+        assert_eq!(sps.bit_depth_c(), 8);
+        assert_eq!(sps.profile_tier_level.general_profile.level_idc, Some(150));
+
+        let video_signal_type = &sps.vui_parameters.as_ref().unwrap().video_signal_type;
+        assert_eq!(video_signal_type.colour_primaries, 0);
+        assert_eq!(video_signal_type.transfer_characteristics, 0);
+        assert_eq!(video_signal_type.matrix_coeffs, 0);
         insta::assert_debug_snapshot!(nalu);
     }
 
