@@ -80,14 +80,19 @@ impl ProfileTierLevel {
         let mut last_profile = general_profile.clone();
         let mut sub_layer_profiles: Vec<_> = sub_layer_profiles
             .into_iter()
+            .zip(sub_layer_level_idcs)
             .rev()
-            .map(|profile| match profile {
+            .map(|(profile, level_idc)| match profile {
                 Some(profile) => {
                     let profile = profile.merge(&last_profile);
                     last_profile = profile.clone();
                     profile
                 }
-                None => last_profile.clone(),
+                None => {
+                    // Only the level can be present here; the rest is inferred from the next higher sub-layer.
+                    last_profile.level_idc = level_idc.or(last_profile.level_idc);
+                    last_profile.clone()
+                }
             })
             .collect();
         sub_layer_profiles.reverse(); // reverse back to original order
